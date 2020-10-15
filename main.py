@@ -216,6 +216,9 @@ def stackImages(scale,imgArray):
         hor= np.hstack(imgArray)
         ver = hor
     return ver
+            elif objCor>4: objectType = "Circles"
+            else: objectType = "None"
+            cv2.rectangle(imgContour,(x,y),(x+w,y+h),(0,255,0),2)
 def getContours(img):
     contours, hierarchy = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     for cnt in contours:
@@ -229,14 +232,12 @@ def getContours(img):
             print(len(approx))
             objCor = len(approx)
             x,y,w,h = cv2.boundingRect(approx)
-            if objCor == 3: objectType = "Tri"
+            
+            if objCor == 3: objectType = "Tri"  #Shape Detection
             elif objCor == 4:
                 aspRatio = w/float(h)
                 if aspRatio > 0.95 and aspRatio < 1.05: objectType = "Square"
                 else: objectType = "Rectangle"
-            elif objCor>4: objectType = "Circles"
-            else: objectType = "None"
-            cv2.rectangle(imgContour,(x,y),(x+w,y+h),(0,255,0),2)
             cv2.putText(imgContour,objectType,
                         (x+(w//2)-10,y+(h//2)-10),cv2.FONT_HERSHEY_COMPLEX,0.7,(0,0,0),2)
 
@@ -258,17 +259,82 @@ imgStack = stackImages(0.8 ,([img,imgGray,imgBlur],[imgCanny,imgContour,imgBlank
 cv2.imshow("stack",imgStack)
 cv2.waitKey(0)"""
 
-#FACE DETECTİON
+"""#FACE DETECTİON
 
 faceCascade = cv2.CascadeClassifier("mine/haarcascade_frontalface_default.xml")
 img = cv2.imread("mine/lenna.png")
 imgGray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
-faces = faceCascade.detectMultiScale(imgGray,1.1,4)
+faces = faceCascade.detectMultiScale(imgGray,1.1,4) #Face Detection
 
 for(x,y,w,h)  in faces:
     cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
 cv2.imshow("Result",img)
-cv2.waitKey(0)
+cv2.waitKey(0)"""
+
+
+#Project1 #drawing circle with colors
+cap = cv2.VideoCapture(0)
+cap.set(3,640)
+cap.set(4,480)
+cap.set(10,150) #brightnes
+
+myColors = [[5,107,0,19,255,255],
+            [133,56,0,159,156,255],
+            [57,76,0,100,255,255]] #mor turuncu ve yeşilin hsv  min ve max degerleri
+myColorValues = [[51,153,255],     #BGR
+                 [255,0,255],
+                 [0,255,0]]
+myPoints = [] #[x,y,colorId]
+
+
+def findColor(img,myColors,myColorValues):
+    imgHSV = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+    count = 0
+    newPoints=[]
+    for color in myColors:
+        lower = np.array(color[0:3])
+        upper = np.array(color[3:6])
+        mask = cv2.inRange(imgHSV, lower, upper) #for döngüsü içinde hsv degerlerini kullanarak degerlerin bulunması
+        x,y = getContours(mask)
+        cv2.circle(imgResult,(x,y),10,myColorValues[count],cv2.FILLED)
+        if x!=0 and y!=0:
+            newPoints.append([x,y,count])
+        count += 1
+        #cv2.imshow(str(color[0]),mask)
+    return newPoints
+def getContours(img):
+    contours, hierarchy = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    x,y,w,h = 0,0,0,0
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area > 500:
+            #cv2.drawContours(imgResult, cnt, -1, (255, 0, 0), 3) #bulunan renklerin çevresinin çizilmesi
+            peri = cv2.arcLength(cnt,True)
+            #print(peri)
+            approx = cv2.approxPolyDP(cnt,0.02*peri,True)
+            x,y,w,h = cv2.boundingRect(approx)
+    return x+w//2,y
+
+def drawOnCanvas(myPoints,myColorValues):
+    for point in myPoints:
+        cv2.circle(imgResult, (point[0],point[1]), 10, myColorValues[point[2]], cv2.FILLED)
+
+
+while True:
+    success, img = cap.read()
+    imgResult = img.copy()
+    newPoints = findColor(img, myColors,myColorValues)
+    if len(newPoints)!=0:
+        for newP in newPoints:
+            myPoints.append(newP)
+    if len(myPoints)!=0:
+        drawOnCanvas(myPoints,myColorValues)
+
+
+    cv2.imshow("Result", imgResult)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break  #Webcam captured and when q clicked it's quited
+
 
 
